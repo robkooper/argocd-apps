@@ -1,0 +1,32 @@
+{{- if ne .Values.cluster.name "in-cluster" }}
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: {{ .Values.cluster.name | quote }}
+  namespace: argocd
+  annotations:
+    "helm.sh/hook-weight": "-9"
+spec:
+  description: "{{ .Values.cluster.name }} cluster"
+  sourceRepos:
+    - '*'
+  destinations:
+    - namespace: '*'
+      server: {{ .Values.cluster.server }}
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  roles:
+    - name: admin
+      description: Admin privileges to {{ .Values.cluster.name }}
+      policies:
+        - p, proj:{{ .Values.cluster.name }}:admin, applications, *, {{ .Values.cluster.name }}/*, allow
+      groups:
+        {{ toYaml .Values.cluster.admin | indent 8 }}
+    - name: user
+      description: Read-only privileges to {{ .Values.cluster.name }}
+      policies:
+        - p, proj:{{ .Values.cluster.name }}:read-only, applications, get, {{ .Values.cluster.name }}/*, allow
+      groups:
+        {{ toYaml .Values.cluster.user | indent 8 }}
+{{- end }}

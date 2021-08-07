@@ -1,0 +1,87 @@
+{{- if and .Values.traefik2 .Values.traefik2.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ .Values.cluster.name }}-traefik
+  namespace: argocd
+  # Add a this finalizer ONLY if you want these to cascade delete.
+  #finalizers:
+  #  - resources-finalizer.argocd.argoproj.io
+spec:
+  project: admin
+
+  # Source of the application manifests
+  source:
+    repoURL: https://helm.traefik.io/traefik
+    chart: traefik
+    targetRevision: {{ .Values.traefik2.version }}
+
+    # helm specific config
+    helm:
+      version: v3
+
+      # Release name override (defaults to application name)
+      releaseName: traefik
+
+      # Values file as block file
+      values: |
+        service:
+          externalIP:
+            - {{ .Values.traefik2.externalIP }}
+          spec:
+            externalTrafficPolicy: Local
+            loadBalancerIP: {{ .Values.traefik2.loadBalancerIP }}
+        ports:
+          web:
+            redirectTo: websecure
+          websecure:
+            tls:
+              enabled: true
+              certResolver: letsencrypt
+        additionalArguments:
+          - --providers.kubernetesingress.ingressendpoint.ip={{ .Values.traefik2.externalIP }}
+          {{- if .Values.traefik2.acme }}
+          - --certificatesresolvers.letsencrypt.acme.caserver={{ .Values.traefik2.acme.server | default "https://acme-v02.api.letsencrypt.org/directory" }}
+          - --certificatesresolvers.letsencrypt.acme.email={{ .Values.traefik2.acme.email }}
+          - --certificatesresolvers.letsencrypt.acme.storage=/data/acme.json
+          - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+          {{- end }}
+        persistence:
+          enabled: true
+        ingressRoute:
+          dashboard:
+            enabled: false
+        tlsOptions:
+          default:
+            minVersion: VersionTLS12
+            cipherSuites:
+              - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+              - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+              - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+              - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+              - TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305
+              - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305
+
+  # Destination cluster and namespace to deploy the application
+  destination:
+    server: {{ .Values.cluster.server }}
+    namespace: traefik
+
+  # Sync policy
+  # syncPolicy:
+  #   automated: # automated sync by default retries failed attempts 5 times with following delays between attempts ( 5s, 10s, 20s, 40s, 80s ); retry controlled using `retry` field.
+  #     prune: true # Specifies if resources should be pruned during auto-syncing ( false by default ).
+  #     selfHeal: true # Specifies if partial app sync should be executed when resources are changed only in target Kubernetes cluster and no git change detected ( false by default ).
+  #     allowEmpty: false # Allows deleting all application resources during automatic syncing ( false by default ).
+  #   syncOptions:     # Sync options which modifies sync behavior
+  #   - Validate=true # disables resource validation (equivalent to 'kubectl apply --validate=false') ( true by default ).
+  #   - CreateNamespace=true # Namespace Auto-Creation ensures that namespace specified as the application destination exists in the destination cluster.
+  #   - PrunePropagationPolicy=foreground # Supported policies are background, foreground and orphan.
+  #   - PruneLast=true # Allow the ability for resource pruning to happen as a final, implicit wave of a sync operation
+  #   retry:
+  #     limit: 5 # number of failed sync attempt retries; unlimited number of attempts if less than 0
+  #     backoff:
+  #       duration: 5s # the amount to back off. Default unit is seconds, but could also be a duration (e.g. "2m", "1h")
+  #       factor: 2 # a factor to multiply the base duration after each failed retry
+  #       maxDuration: 3m # the maximum amount of time allowed for the backoff strategy
+{{- end }}

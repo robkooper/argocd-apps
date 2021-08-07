@@ -1,0 +1,22 @@
+{{- if ne .Values.cluster.name "in-cluster" }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-{{ .Values.cluster.name }}-secret
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+  namespace: argocd
+  annotations:
+    "helm.sh/hook-weight": "-10"
+type: Opaque
+stringData:
+  name: browndog
+  server: {{ .Values.cluster.server }}
+  config: |
+    {
+      "bearerToken": "{{ .Values.cluster.token }}",
+      "tlsClientConfig": {
+        "insecure": false
+      }
+    }
+{{- end }}

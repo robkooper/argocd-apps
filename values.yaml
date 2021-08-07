@@ -1,0 +1,16 @@
+cluster:
+  name: in-cluster
+  server: https://kubernetes.default.svc
+  token: token-something-bearer-secret
+  admin:
+    - all_admin
+  user:
+    - all_user
+
+traefik2:
+  enabled: false
+  version: "1.10.*"
+  externalIP: 1.1.1.1
+  loadBalancerIP: 1.1.1.2
+  acme:
+    email: nobody@example.com
