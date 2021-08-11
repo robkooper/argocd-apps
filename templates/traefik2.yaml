@@ -48,6 +48,7 @@ spec:
           {{- end }}
         persistence:
           enabled: true
+          storageClass: longhorn
         ingressRoute:
           dashboard:
             enabled: false
